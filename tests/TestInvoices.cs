@@ -58,8 +58,33 @@ public static class TestInvoices
                     UnitPrice = 150.50m,
                     TaxRate = 25m,
                     IsTaxable = true
+                },
+                new InvoicingInvoiceLine
+                {
+                    LineId = "2",
+                    Description = "Platform subscription",
+                    Quantity = 1m,
+                    UnitCode = "C62",
+                    UnitPrice = 10m,
+                    DiscountPercent = 10m,
+                    TaxRate = 25m,
+                    IsTaxable = true
                 }
             ]
         };
+    }
+
+    public static Invoice CreateCreditNote()
+    {
+        var invoice = CreateInvoice();
+        invoice.OriginalInvoiceNumber = 42;
+
+        foreach (var line in invoice.Lines)
+        {
+            if (line.UnitPrice > 0m)
+                line.UnitPrice = -line.UnitPrice;
+        }
+
+        return invoice;
     }
 }

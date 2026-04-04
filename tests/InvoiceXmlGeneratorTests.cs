@@ -27,9 +27,7 @@ public class InvoiceXmlGeneratorTests
     [Fact]
     public void Generate_ProducesCreditNoteDocument_ForNegativePayableAmount()
     {
-        var invoice = TestInvoices.CreateInvoice();
-        invoice.Lines[0].UnitPrice *= -1m;
-        invoice.OriginalInvoiceNumber = 42;
+        var invoice = TestInvoices.CreateCreditNote();
 
         var xml = InvoiceXmlGenerator.Generate(invoice);
         var document = XDocument.Parse(Encoding.UTF8.GetString(xml));

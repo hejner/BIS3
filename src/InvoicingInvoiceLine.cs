@@ -7,6 +7,7 @@ public class InvoicingInvoiceLine
     public decimal Quantity { get; set; }
     public required string UnitCode { get; set; }
     public decimal UnitPrice { get; set; }
+    public decimal DiscountPercent { get; set; }
     public decimal TaxRate { get; set; }
     public bool IsTaxable { get; set; } = true;
 }

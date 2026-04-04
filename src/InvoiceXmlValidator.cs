@@ -69,6 +69,8 @@ public static class InvoiceXmlValidator
 
         if (PEPPOL_EN16931_R003(document))
             errors.Add("PEPPOL-EN16931-R003: A buyer reference or purchase order reference MUST be provided.");
+        if (PEPPOL_EN16931_R042(document))
+            errors.Add("PEPPOL-EN16931-R042: Allowance/charge percentage MUST be provided when allowance/charge base amount is provided and MUST be between 0 and 100.");
         if (PEPPOL_SYNTAX_ORDER(document))
             errors.Add("PEPPOL-SYNTAX-ORDER: Invoice elements must follow the Peppol UBL Invoice order.");
 
@@ -214,6 +216,32 @@ public static class InvoiceXmlValidator
         return IsEmpty(document.Root?.Element(Cbc + "BuyerReference"));
     }
 
+    private static bool PEPPOL_EN16931_R042(XDocument document)
+    {
+        var allowanceCharges = document.Descendants(Cac + "AllowanceCharge");
+
+        foreach (var allowance in allowanceCharges)
+        {
+            var baseAmount = allowance.Element(Cbc + "BaseAmount");
+            var multiplier = allowance.Element(Cbc + "MultiplierFactorNumeric");
+            var hasBaseAmount = baseAmount != null && !string.IsNullOrWhiteSpace(baseAmount.Value);
+
+            if (!hasBaseAmount)
+                continue;
+
+            if (multiplier == null || string.IsNullOrWhiteSpace(multiplier.Value))
+                return true;
+
+            if (!decimal.TryParse(multiplier.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var value))
+                return true;
+
+            if (value < 0m || value > 100m)
+                return true;
+        }
+
+        return false;
+    }
+
     private static bool PEPPOL_SYNTAX_ORDER(XDocument document)
     {
         if (document.Root == null)
@@ -248,6 +276,12 @@ public static class InvoiceXmlValidator
             }
         }
 
+        foreach (var allowanceCharge in document.Root.Elements(Cac + "AllowanceCharge"))
+        {
+            if (!IsElementOrderValid(allowanceCharge.Elements(), InvoiceXmlLists.PeppolAllowanceChargeElementOrder))
+                return true;
+        }
+
         foreach (var taxTotal in document.Root.Elements(Cac + "TaxTotal"))
         {
             if (!IsElementOrderValid(taxTotal.Elements(), InvoiceXmlLists.PeppolTaxTotalElementOrder))
@@ -276,6 +310,12 @@ public static class InvoiceXmlValidator
         {
             if (!IsElementOrderValid(invoiceLine.Elements(), InvoiceXmlLists.PeppolInvoiceLineOrder))
                 return true;
+
+            foreach (var allowanceCharge in invoiceLine.Elements(Cac + "AllowanceCharge"))
+            {
+                if (!IsElementOrderValid(allowanceCharge.Elements(), InvoiceXmlLists.PeppolAllowanceChargeElementOrder))
+                    return true;
+            }
 
             foreach (var item in invoiceLine.Elements(Cac + "Item"))
             {

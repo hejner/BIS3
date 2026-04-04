@@ -324,8 +324,20 @@ public static class InvoiceXmlLists
         [XName.Get("ID", CbcNamespace)] = 0,
         [XName.Get("InvoicedQuantity", CbcNamespace)] = 1,
         [XName.Get("LineExtensionAmount", CbcNamespace)] = 2,
-        [XName.Get("Item", CacNamespace)] = 3,
-        [XName.Get("Price", CacNamespace)] = 4
+        [XName.Get("AllowanceCharge", CacNamespace)] = 3,
+        [XName.Get("Item", CacNamespace)] = 4,
+        [XName.Get("Price", CacNamespace)] = 5
+    };
+
+    public static readonly IReadOnlyDictionary<XName, int> PeppolAllowanceChargeElementOrder = new Dictionary<XName, int>
+    {
+        [XName.Get("ChargeIndicator", CbcNamespace)] = 0,
+        [XName.Get("AllowanceChargeReasonCode", CbcNamespace)] = 1,
+        [XName.Get("AllowanceChargeReason", CbcNamespace)] = 2,
+        [XName.Get("MultiplierFactorNumeric", CbcNamespace)] = 3,
+        [XName.Get("Amount", CbcNamespace)] = 4,
+        [XName.Get("BaseAmount", CbcNamespace)] = 5,
+        [XName.Get("TaxCategory", CacNamespace)] = 6
     };
 
     public static readonly IReadOnlyDictionary<XName, int> PeppolItemElementOrder = new Dictionary<XName, int>
@@ -339,4 +351,3 @@ public static class InvoiceXmlLists
         [XName.Get("PriceAmount", CbcNamespace)] = 0
     };
 }
-
