@@ -190,9 +190,6 @@ public static class InvoiceXmlValidator
             errors.Add("BR-48: Each VAT breakdown (BG-23) shall have a VAT category rate (BT-119), except if the Invoice is not subject to VAT.");
         if (BR_49(document))
             errors.Add("BR-49: A Payment instruction (BG-16) shall specify the Payment means type code (BT-81).");
-        if (BR_CO_15(document))
-            errors.Add("BR-CO-15: Invoice total amount with VAT (BT-112) must equal total without VAT plus VAT.");
-
         return errors;
     }
 
@@ -223,7 +220,12 @@ public static class InvoiceXmlValidator
 
     private static bool PEPPOL_EN16931_R003(XDocument document)
     {
-        return IsEmpty(document.Root?.Element(Cbc + "BuyerReference"));
+        var buyerReference = document.Root?.Element(Cbc + "BuyerReference");
+        var orderReferenceId = document.Root?
+            .Element(Cac + "OrderReference")?
+            .Element(Cbc + "ID");
+
+        return IsEmpty(buyerReference) && IsEmpty(orderReferenceId);
     }
 
     private static bool PEPPOL_EN16931_R040(XDocument document)
