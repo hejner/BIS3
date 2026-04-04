@@ -240,13 +240,6 @@ public static class InvoiceXmlGenerator
                                 new XElement(cbc + "BaseAmount",
                                     new XAttribute("currencyID", invoice.CurrencyCode),
                                     normalizedAmountBeforeDiscount.ToString(amountFormat, culture)
-                                ),
-                                new XElement(cac + "TaxCategory",
-                                    new XElement(cbc + "ID", line.IsTaxable && lineRate > 0m ? "S" : "Z"),
-                                    new XElement(cbc + "Percent", lineRate.ToString(amountFormat, culture)),
-                                    new XElement(cac + "TaxScheme",
-                                        new XElement(cbc + "ID", "VAT")
-                                    )
                                 )
                             )
                             : null,

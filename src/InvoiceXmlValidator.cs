@@ -69,8 +69,18 @@ public static class InvoiceXmlValidator
 
         if (PEPPOL_EN16931_R003(document))
             errors.Add("PEPPOL-EN16931-R003: A buyer reference or purchase order reference MUST be provided.");
+        if (PEPPOL_EN16931_R040(document))
+            errors.Add("PEPPOL-EN16931-R040: Allowance/charge amount must equal base amount * percentage/100 if base amount and percentage exists.");
+        if (PEPPOL_EN16931_R041(document))
+            errors.Add("PEPPOL-EN16931-R041: Allowance/charge base amount MUST be provided when allowance/charge percentage is provided.");
         if (PEPPOL_EN16931_R042(document))
             errors.Add("PEPPOL-EN16931-R042: Allowance/charge percentage MUST be provided when allowance/charge base amount is provided and MUST be between 0 and 100.");
+        if (PEPPOL_EN16931_R043(document))
+            errors.Add("PEPPOL-EN16931-R043: Allowance/charge ChargeIndicator value MUST equal 'true' or 'false'.");
+        if (PEPPOL_EN16931_R051(document))
+            errors.Add("PEPPOL-EN16931-R051: currencyID on allowance Amount/BaseAmount MUST match the invoice currency code (BT-5).");
+        if (UBL_DT_01_AllowanceAmount(document))
+            errors.Add("UBL-DT-01: Allowance amount and base amount shall be decimal up to two fraction digits.");
         if (PEPPOL_SYNTAX_ORDER(document))
             errors.Add("PEPPOL-SYNTAX-ORDER: Invoice elements must follow the Peppol UBL Invoice order.");
 
@@ -216,9 +226,39 @@ public static class InvoiceXmlValidator
         return IsEmpty(document.Root?.Element(Cbc + "BuyerReference"));
     }
 
+    private static bool PEPPOL_EN16931_R040(XDocument document)
+    {
+        foreach (var allowance in GetApplicableAllowanceCharges(document))
+        {
+            var baseAmount = GetDecimal(allowance.Element(Cbc + "BaseAmount"));
+            var multiplier = GetDecimal(allowance.Element(Cbc + "MultiplierFactorNumeric"));
+
+            if (!baseAmount.HasValue || !multiplier.HasValue)
+                continue;
+
+            var amount = GetDecimal(allowance.Element(Cbc + "Amount"));
+            if (!amount.HasValue)
+                return true;
+
+            var expected = baseAmount.Value * multiplier.Value / 100m;
+            if (Math.Abs(amount.Value - expected) > 0.02m)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool PEPPOL_EN16931_R041(XDocument document)
+    {
+        return GetApplicableAllowanceCharges(document)
+            .Any(allowance =>
+                !IsEmpty(allowance.Element(Cbc + "MultiplierFactorNumeric")) &&
+                IsEmpty(allowance.Element(Cbc + "BaseAmount")));
+    }
+
     private static bool PEPPOL_EN16931_R042(XDocument document)
     {
-        var allowanceCharges = document.Descendants(Cac + "AllowanceCharge");
+        var allowanceCharges = GetApplicableAllowanceCharges(document);
 
         foreach (var allowance in allowanceCharges)
         {
@@ -237,6 +277,58 @@ public static class InvoiceXmlValidator
 
             if (value < 0m || value > 100m)
                 return true;
+        }
+
+        return false;
+    }
+
+    private static bool PEPPOL_EN16931_R043(XDocument document)
+    {
+        return GetApplicableAllowanceCharges(document)
+            .Any(allowance =>
+            {
+                var value = allowance.Element(Cbc + "ChargeIndicator")?.Value?.Trim();
+                return value is not ("true" or "false");
+            });
+    }
+
+    private static bool PEPPOL_EN16931_R051(XDocument document)
+    {
+        var documentCurrency = document.Root?.Element(Cbc + "DocumentCurrencyCode")?.Value?.Trim();
+        if (string.IsNullOrWhiteSpace(documentCurrency))
+            return false;
+
+        foreach (var allowance in GetApplicableAllowanceCharges(document))
+        {
+            foreach (var amountElement in allowance.Elements()
+                         .Where(element => element.Name == Cbc + "Amount" || element.Name == Cbc + "BaseAmount"))
+            {
+                var currencyId = amountElement.Attribute("currencyID")?.Value?.Trim();
+                if (string.IsNullOrWhiteSpace(currencyId) ||
+                    !string.Equals(currencyId, documentCurrency, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool UBL_DT_01_AllowanceAmount(XDocument document)
+    {
+        foreach (var allowance in GetApplicableAllowanceCharges(document))
+        {
+            foreach (var amountElement in allowance.Elements()
+                         .Where(element => element.Name == Cbc + "Amount" || element.Name == Cbc + "BaseAmount"))
+            {
+                var value = amountElement.Value?.Trim();
+                if (string.IsNullOrWhiteSpace(value))
+                    continue;
+
+                if (!Regex.IsMatch(value, @"^-?\d+(\.\d{1,2})?$"))
+                    return true;
+            }
         }
 
         return false;
@@ -278,7 +370,7 @@ public static class InvoiceXmlValidator
 
         foreach (var allowanceCharge in document.Root.Elements(Cac + "AllowanceCharge"))
         {
-            if (!IsElementOrderValid(allowanceCharge.Elements(), InvoiceXmlLists.PeppolAllowanceChargeElementOrder))
+            if (!IsElementOrderValid(allowanceCharge.Elements(), InvoiceXmlLists.PeppolDocumentAllowanceChargeElementOrder))
                 return true;
         }
 
@@ -313,7 +405,7 @@ public static class InvoiceXmlValidator
 
             foreach (var allowanceCharge in invoiceLine.Elements(Cac + "AllowanceCharge"))
             {
-                if (!IsElementOrderValid(allowanceCharge.Elements(), InvoiceXmlLists.PeppolAllowanceChargeElementOrder))
+                if (!IsElementOrderValid(allowanceCharge.Elements(), InvoiceXmlLists.PeppolLineAllowanceChargeElementOrder))
                     return true;
             }
 
@@ -729,6 +821,9 @@ public static class InvoiceXmlValidator
                 .Elements(Cbc + "ID")
                 .FirstOrDefault()?.Value;
 
+            if (string.IsNullOrWhiteSpace(taxScheme))
+                continue;
+
             if (string.Equals(taxScheme, "VAT", StringComparison.OrdinalIgnoreCase))
                 continue;
 
@@ -906,6 +1001,21 @@ public static class InvoiceXmlValidator
 
         return decimal.TryParse(payableValue, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount)
             && amount < 0m;
+    }
+
+    private static IEnumerable<XElement> GetApplicableAllowanceCharges(XDocument document)
+    {
+        if (document.Root == null)
+            return Enumerable.Empty<XElement>();
+
+        var lineElementName = document.Root.Name.LocalName == "CreditNote"
+            ? "CreditNoteLine"
+            : "InvoiceLine";
+
+        return document.Root.Elements(Cac + "AllowanceCharge")
+            .Concat(document.Root
+                .Elements(Cac + lineElementName)
+                .Elements(Cac + "AllowanceCharge"));
     }
 
     private static string? GetPaymentMeansCode(XDocument document)
