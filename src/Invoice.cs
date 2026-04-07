@@ -52,16 +52,19 @@ public class Invoice
     public (decimal Net, decimal Tax, decimal Gross) GetLineAmounts(InvoicingInvoiceLine line)
     {
         var rate = line.IsTaxable ? line.TaxRate : 0m;
-        var gross = RoundingHelper.RoundMoney(line.Quantity * line.UnitPrice);
+        var discountPercent = line.DiscountPercent;
+        var unitPrice = line.UnitPrice;
+        var amount = RoundingHelper.RoundMoney(line.Quantity * unitPrice);
+        var discountedAmount = RoundingHelper.RoundMoney(amount * (1m - (discountPercent / 100m)));
 
         if (PricesIncludeTax && rate > 0m)
         {
-            var net = RoundingHelper.RoundMoney(gross / (1m + rate / 100m));
-            var tax = RoundingHelper.RoundMoney(gross - net);
-            return (net, tax, gross);
+            var net = RoundingHelper.RoundMoney(discountedAmount / (1m + rate / 100m));
+            var tax = RoundingHelper.RoundMoney(discountedAmount - net);
+            return (net, tax, discountedAmount);
         }
 
-        var netAmount = gross;
+        var netAmount = discountedAmount;
         var taxAmount = rate > 0m
             ? RoundingHelper.RoundMoney(netAmount * rate / 100m)
             : 0m;

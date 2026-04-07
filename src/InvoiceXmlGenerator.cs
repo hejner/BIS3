@@ -198,17 +198,51 @@ public static class InvoiceXmlGenerator
                     )
                 ),
                 invoice.Lines.Select(line =>
-                    new XElement(cac + lineElementName,
+                {
+                    var lineAmounts = invoice.GetLineAmounts(line);
+                    var lineRate = line.IsTaxable ? line.TaxRate : 0m;
+                    var discountPercent = line.DiscountPercent;
+                    var amount = RoundingHelper.RoundMoney(line.Quantity * line.UnitPrice);
+                    var amountBeforeDiscount = invoice.PricesIncludeTax && lineRate > 0m
+                        ? RoundingHelper.RoundMoney(amount / (1m + lineRate / 100m))
+                        : amount;
+                    var normalizedAmountBeforeDiscount = RoundingHelper.RoundMoney(NormalizeValue(amountBeforeDiscount));
+                    var normalizedNetAfterDiscount = RoundingHelper.RoundMoney(NormalizeValue(lineAmounts.Net));
+                    var lineAllowanceAmount = RoundingHelper.RoundMoney(normalizedAmountBeforeDiscount - normalizedNetAfterDiscount);
+                    var unitPrice = invoice.PricesIncludeTax && lineRate > 0m
+                        ? RoundingHelper.RoundMoney(line.UnitPrice / (1m + lineRate / 100m))
+                        : line.UnitPrice;
+                    var normalizedUnitPrice = RoundingHelper.RoundMoney(NormalizeValue(unitPrice));
+                    var normalizedQuantity = NormalizeValue(line.Quantity);
+
+                    return new XElement(cac + lineElementName,
                         new XElement(cbc + "ID", line.LineId),
                         new XElement(cbc + quantityElementName,
                             new XAttribute("unitCode", line.UnitCode),
-                            NormalizeValue(line.Quantity).ToString("0.##", culture)
+                            normalizedQuantity.ToString("0.##", culture)
                         ),
                         new XElement(cbc + "LineExtensionAmount",
                             new XAttribute("currencyID", invoice.CurrencyCode),
-                            RoundingHelper.RoundMoney(NormalizeValue(invoice.GetLineAmounts(line).Net))
-                                .ToString(amountFormat, culture)
+                            normalizedNetAfterDiscount.ToString(amountFormat, culture)
                         ),
+                        discountPercent > 0m
+                            ? new XElement(cac + "AllowanceCharge",
+                                new XElement(cbc + "ChargeIndicator", "false"),
+                                new XElement(cbc + "AllowanceChargeReasonCode", "95"),
+                                new XElement(cbc + "AllowanceChargeReason", "Discount"),
+                                new XElement(cbc + "MultiplierFactorNumeric",
+                                    discountPercent.ToString(amountFormat, culture)
+                                ),
+                                new XElement(cbc + "Amount",
+                                    new XAttribute("currencyID", invoice.CurrencyCode),
+                                    lineAllowanceAmount.ToString(amountFormat, culture)
+                                ),
+                                new XElement(cbc + "BaseAmount",
+                                    new XAttribute("currencyID", invoice.CurrencyCode),
+                                    normalizedAmountBeforeDiscount.ToString(amountFormat, culture)
+                                )
+                            )
+                            : null,
                         new XElement(cac + "Item",
                             new XElement(cbc + "Name", line.Description),
                             new XElement(cac + "ClassifiedTaxCategory",
@@ -224,13 +258,11 @@ public static class InvoiceXmlGenerator
                         new XElement(cac + "Price",
                             new XElement(cbc + "PriceAmount",
                                 new XAttribute("currencyID", invoice.CurrencyCode),
-                                RoundingHelper.RoundMoney(NormalizeValue(invoice.GetLineAmounts(line).Net) /
-                                                          (NormalizeValue(line.Quantity) == 0m ? 1m : NormalizeValue(line.Quantity)))
-                                    .ToString(amountFormat, culture)
+                                normalizedUnitPrice.ToString(amountFormat, culture)
                             )
                         )
-                    )
-                )
+                    );
+                })
             )
         );
 
