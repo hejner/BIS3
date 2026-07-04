@@ -6,7 +6,10 @@ namespace Taskr.Bis3;
 
 public static class InvoiceXmlGenerator
 {
-    public static byte[] Generate(Invoice invoice)
+    public static byte[] Generate(
+        Invoice invoice,
+        InvoiceXmlFormat format = InvoiceXmlFormat.StandardBusinessDocument
+    )
     {
         ArgumentNullException.ThrowIfNull(invoice);
 
@@ -266,7 +269,13 @@ public static class InvoiceXmlGenerator
             )
         );
 
-        return Encoding.UTF8.GetBytes(document.ToString());
+        var xml = Encoding.UTF8.GetBytes(document.ToString());
+        return format switch
+        {
+            InvoiceXmlFormat.StandardBusinessDocument => StandardBusinessDocumentXmlGenerator.Wrap(xml),
+            InvoiceXmlFormat.Ubl => xml,
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
+        };
     }
 
     private static XElement? BuildFinancialInstitutionBranch(

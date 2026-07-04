@@ -8,11 +8,24 @@ namespace Taskr.Bis3.Tests;
 public class InvoiceXmlGeneratorTests
 {
     [Fact]
-    public void Generate_ProducesInvoiceDocument_ForRegularInvoice()
+    public void Generate_ProducesStandardBusinessDocument_ByDefault()
     {
         var invoice = TestInvoices.CreateInvoice();
 
         var xml = InvoiceXmlGenerator.Generate(invoice);
+        var document = XDocument.Parse(Encoding.UTF8.GetString(xml));
+
+        var root = document.Root;
+        Assert.NotNull(root);
+        Assert.Equal("StandardBusinessDocument", root.Name.LocalName);
+    }
+
+    [Fact]
+    public void Generate_ProducesInvoiceDocument_ForRegularInvoice_WhenUblFormatIsRequested()
+    {
+        var invoice = TestInvoices.CreateInvoice();
+
+        var xml = InvoiceXmlGenerator.Generate(invoice, InvoiceXmlFormat.Ubl);
         var document = XDocument.Parse(Encoding.UTF8.GetString(xml));
 
         var root = document.Root;
@@ -25,11 +38,11 @@ public class InvoiceXmlGeneratorTests
     }
 
     [Fact]
-    public void Generate_ProducesCreditNoteDocument_ForNegativePayableAmount()
+    public void Generate_ProducesCreditNoteDocument_ForNegativePayableAmount_WhenUblFormatIsRequested()
     {
         var invoice = TestInvoices.CreateCreditNote();
 
-        var xml = InvoiceXmlGenerator.Generate(invoice);
+        var xml = InvoiceXmlGenerator.Generate(invoice, InvoiceXmlFormat.Ubl);
         var document = XDocument.Parse(Encoding.UTF8.GetString(xml));
 
         var root = document.Root;

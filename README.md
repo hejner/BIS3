@@ -10,9 +10,10 @@ It is designed for:
 ## Highlights
 
 - Invoice and credit note XML generation (`Invoice` / `CreditNote`)
+- StandardBusinessDocument envelope generation by default
 - Built-in BIS 3 rule checks and code-list validation
 - Deterministic totals and VAT rounding helpers
-- Unit-tested behavior (`3` tests currently)
+- Unit-tested behavior
 
 ## Quick Start
 
@@ -82,6 +83,11 @@ var document = XDocument.Parse(Encoding.UTF8.GetString(xmlBytes));
 var errors = InvoiceXmlValidator.Validate(document);
 
 Console.WriteLine($"Validation errors: {errors.Count}");
+
+var rawUblXmlBytes = InvoiceXmlGenerator.Generate(
+    invoice,
+    InvoiceXmlFormat.Ubl
+);
 ```
 
 ## Requirements
@@ -98,7 +104,9 @@ dotnet add package Taskr.Bis3
 
 ## Public API
 
-- `InvoiceXmlGenerator.Generate(Invoice invoice)` -> `byte[]`
+- `InvoiceXmlGenerator.Generate(Invoice invoice, InvoiceXmlFormat format = InvoiceXmlFormat.StandardBusinessDocument)` -> `byte[]`
+- `InvoiceXmlFormat.StandardBusinessDocument` for Peppol-ready SBD output
+- `InvoiceXmlFormat.Ubl` for the raw UBL payload
 - `InvoiceXmlValidator.Validate(XDocument document)` -> `IReadOnlyList<string>`
 - `Invoice`
   - Core fields: invoice id, dates, currency, buyer reference, seller/buyer/payment, lines

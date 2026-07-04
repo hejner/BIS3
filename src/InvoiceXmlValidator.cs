@@ -10,20 +10,48 @@ public static class InvoiceXmlValidator
 {
     private static readonly XNamespace Cbc = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2";
     private static readonly XNamespace Cac = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2";
+    private static readonly XNamespace Sbdh = "http://www.unece.org/cefact/namespaces/StandardBusinessDocumentHeader";
+    private static readonly XNamespace Invoice = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2";
+    private static readonly XNamespace CreditNote = "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2";
+
     public static IReadOnlyList<string> Validate(XDocument document)
     {
         var errors = new List<string>();
+        var bisDocument = ExtractBisDocument(document);
 
-        if (HasEmptyElements(document))
+        if (bisDocument is null)
+        {
+            errors.Add("SBDH: StandardBusinessDocument envelope MUST contain an Invoice or CreditNote payload.");
+            return errors;
+        }
+
+        if (HasEmptyElements(bisDocument))
             errors.Add("Document MUST not contain empty elements.");
 
-        errors.AddRange(BR_Tests(document));
-        errors.AddRange(BR_CO_Tests(document));
-        errors.AddRange(CL_Tests(document));
-        errors.AddRange(DK_Tests(document));
-        errors.AddRange(PEPPOL_Tests(document));
+        errors.AddRange(BR_Tests(bisDocument));
+        errors.AddRange(BR_CO_Tests(bisDocument));
+        errors.AddRange(CL_Tests(bisDocument));
+        errors.AddRange(DK_Tests(bisDocument));
+        errors.AddRange(PEPPOL_Tests(bisDocument));
 
         return errors;
+    }
+
+    private static XDocument? ExtractBisDocument(XDocument document)
+    {
+        if (document.Root?.Name != Sbdh + "StandardBusinessDocument")
+            return document;
+
+        var payload = document.Root
+            .Elements()
+            .FirstOrDefault(element =>
+                element.Name == Invoice + "Invoice" ||
+                element.Name == CreditNote + "CreditNote"
+            );
+
+        return payload is null
+            ? null
+            : new XDocument(new XDeclaration("1.0", "utf-8", "yes"), new XElement(payload));
     }
 
     private static List<string> DK_Tests(XDocument document)
