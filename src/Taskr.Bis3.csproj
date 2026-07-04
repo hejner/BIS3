@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
 
     <PackageId>Taskr.Bis3</PackageId>
+    <Version>1.1.0</Version>
     <Title>Taskr BIS 3</Title>
     <Description>.NET library for generating and validating BIS 3 invoice XML documents.</Description>
     <Authors>Taskr</Authors>
